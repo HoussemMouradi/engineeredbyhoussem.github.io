@@ -745,6 +745,91 @@ canvas { display: block; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+
+/* Join Screen styling */
+#joinScreen {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%);
+}
+#joinScreen.active {
+  display: flex;
+}
+.join-container {
+  background: linear-gradient(135deg, #12121a, #1a1a2e);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  width: 420px;
+  max-width: 90vw;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  text-align: center;
+}
+.join-container h2 {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+  background: linear-gradient(135deg, #fff 0%, var(--accent) 50%, #fff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.team-select-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 2px dashed rgba(255,255,255,0.1);
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.02);
+  color: var(--text);
+  cursor: pointer;
+  transition: var(--transition);
+  text-align: left;
+}
+.team-select-btn:hover {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.2);
+}
+.team-select-btn.selected-team1 {
+  border-color: #3b82f6;
+  background: rgba(59,130,246,0.15);
+  box-shadow: 0 0 15px rgba(59,130,246,0.2);
+}
+.team-select-btn.selected-team2 {
+  border-color: #f59e0b;
+  background: rgba(245,158,11,0.15);
+  box-shadow: 0 0 15px rgba(245,158,11,0.2);
+}
+.team-select-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-style: solid;
+}
+
+.join-container input[type="text"] {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 15px;
+  outline: none;
+  transition: var(--transition);
+  margin-top: 8px;
+  margin-bottom: 16px;
+}
+.join-container input[type="text"]:focus {
+  border-color: var(--accent);
+}
 </style>
 </head>
 <body>
@@ -760,7 +845,7 @@ canvas { display: block; }
     <h1>TACTICAL OPS</h1>
     <div class="subtitle">Training Grounds</div>
     <div class="menu-buttons">
-      <button class="btn btn-primary" id="btnPlay" onclick="startGame()">▶ Play</button>
+      <button class="btn btn-primary" id="btnPlay" onclick="openJoinScreen()">▶ Play</button>
       <button class="btn" id="btnInventory" onclick="openPanel('inventory')">🎒 Inventory</button>
       <button class="btn" id="btnShop" onclick="openPanel('shop')">🛒 Shop</button>
       <button class="btn" id="btnSettings" onclick="openPanel('settings')">⚙ Settings</button>
@@ -921,6 +1006,23 @@ canvas { display: block; }
       <span class="gold-icon" style="width:14px;height:14px;"></span>
       <span id="hudGold">2000</span>
     </div>
+    <div id="hudPlayerInfo" style="margin-top: 8px; font-size: 13px; font-weight: 700; text-shadow: 0 1px 3px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 4px;">
+      <div>Name: <span id="hudPlayerName" style="color: #fff;"></span></div>
+      <div>Team: <span id="hudTeamName"></span></div>
+    </div>
+  </div>
+
+  <!-- Top Center Team Count -->
+  <div id="hudTeamCounts" style="position: absolute; top: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; background: rgba(0,0,0,0.5); padding: 8px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border); backdrop-filter: blur(6px); font-weight: 700; font-size: 13px; color: #fff;">
+    <div style="color: #60a5fa; display: flex; align-items: center; gap: 8px;">
+      <span>🔵 DJB:</span>
+      <span id="hudTeam1Count">0/5</span>
+    </div>
+    <div style="border-left: 1px solid var(--border); height: 16px;"></div>
+    <div style="color: #fbbf24; display: flex; align-items: center; gap: 8px;">
+      <span>🟠 Automotive:</span>
+      <span id="hudTeam2Count">0/5</span>
+    </div>
   </div>
 
   <div class="hud-top-right">
@@ -931,11 +1033,16 @@ canvas { display: block; }
   <div class="kill-feed" id="killFeed"></div>
 
   <div class="hud-bottom">
-    <div class="hud-health">
-      <span class="hp-icon">❤️</span>
-      <div>
-        <div class="hp-value" id="hudHp">100</div>
-        <div class="hp-label">Health</div>
+    <div class="hud-health" style="display: flex; flex-direction: column; align-items: flex-start; gap: 6px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span class="hp-icon">❤️</span>
+        <div>
+          <div class="hp-value" id="hudHp">100</div>
+          <div class="hp-label">Health</div>
+        </div>
+      </div>
+      <div style="width: 140px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+        <div id="hudHpBar" style="width: 100%; height: 100%; background: var(--success); transition: width 0.1s ease;"></div>
       </div>
     </div>
     <div class="hud-ammo">
@@ -947,9 +1054,9 @@ canvas { display: block; }
 
   <!-- Bot control panel -->
   <div id="botControlPanel">
-    <button class="ctrl-btn" onclick="changeBotCount(-1)">- Bots</button>
-    <button class="ctrl-btn" id="botCountDisplay">Bots: 5</button>
-    <button class="ctrl-btn" onclick="changeBotCount(1)">+ Bots</button>
+    <button class="ctrl-btn" onclick="changeBotCount(-1)">- Zombies</button>
+    <button class="ctrl-btn" id="botCountDisplay">Zombies: 6</button>
+    <button class="ctrl-btn" onclick="changeBotCount(1)">+ Zombies</button>
     <button class="ctrl-btn" onclick="cycleBotSpeed()">Speed: Normal</button>
     <button class="ctrl-btn" onclick="toggleBotArmor()">Armor: Off</button>
     <button class="ctrl-btn" onclick="toggleBotJump()">Jump: Off</button>
@@ -972,12 +1079,50 @@ canvas { display: block; }
   </div>
 </div>
 
+<!-- ===================== JOIN SCREEN ===================== -->
+<div id="joinScreen">
+  <div class="join-container">
+    <h2>Join Battle</h2>
+    <div class="setting-group" style="text-align: left;">
+      <label for="playerNameInput">Enter Player Name</label>
+      <input type="text" id="playerNameInput" placeholder="Slayer..." maxlength="12" oninput="validateJoinForm()">
+    </div>
+    
+    <div style="text-align: left; margin-bottom: 24px;">
+      <label style="display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">Select Team</label>
+      <button class="team-select-btn" id="btnJoinTeam1" onclick="selectTeam(1)">
+        <span style="font-weight: 700; color: #60a5fa;">🔵 DJB Projet Strategique</span>
+        <span id="team1JoinCount" style="font-size: 13px; color: var(--text-dim);">0/5</span>
+      </button>
+      <button class="team-select-btn" id="btnJoinTeam2" onclick="selectTeam(2)">
+        <span style="font-weight: 700; color: #fbbf24;">🟠 Automotive Mizelet Tetenafis</span>
+        <span id="team2JoinCount" style="font-size: 13px; color: var(--text-dim);">0/5</span>
+      </button>
+    </div>
+    
+    <div style="display: flex; gap: 12px;">
+      <button class="btn" style="flex: 1;" onclick="backToMainMenu()">Cancel</button>
+      <button class="btn btn-primary" style="flex: 1;" id="btnConfirmJoin" onclick="confirmJoin()" disabled>Deploy</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== DEATH SCREEN ===================== -->
+<div id="deathScreen" style="display: none; position: fixed; inset: 0; z-index: 1500; align-items: center; justify-content: center; background: rgba(13, 0, 0, 0.85); backdrop-filter: blur(8px); flex-direction: column; gap: 16px;">
+  <h1 style="color: #ef4444; font-size: 54px; letter-spacing: 6px; text-shadow: 0 0 20px rgba(239, 68, 68, 0.5); font-weight: 900;">ELIMINATED</h1>
+  <p style="font-size: 18px; color: var(--text-dim);" id="deathMessage">You were eliminated by Zombie</p>
+  <div style="font-size: 24px; font-weight: 700; color: #fff; margin-top: 10px;" id="respawnTimerDisplay">Respawning in 3...</div>
+</div>
+
+<!-- ===================== PLAYER LABELS CONTAINER ===================== -->
+<div id="playerLabels" style="position: fixed; inset: 0; pointer-events: none; z-index: 450;"></div>
+
 <!-- ===================== THREE.JS CDN ===================== -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
 <script>
 /* =========================================================
-   GAME STATE & CONFIGURATION
+   GAME STATE & CONFIGURATION & MULTIPLAYER VARIABLES
    ========================================================= */
 const GameState = {
   MENU: 'menu',
@@ -1004,6 +1149,86 @@ const state = {
     sensitivity: 3.0
   }
 };
+
+// ==========================================
+// Multiplayer State and Lobby Management
+// ==========================================
+let channel = null;
+const myPlayerId = 'player_' + Math.random().toString(36).substr(2, 9);
+let myPlayerName = '';
+let myTeam = 0; // 1 = "DJB Projet Strategique", 2 = "Automotive Mizelet Tetenafis"
+let activePlayers = {}; // Contains remote player details
+let lastBroadcastTime = 0;
+let lastHostSyncTime = 0;
+
+// Collections for replicated entities
+let remotePlayers = {}; // Remote player meshes and positions
+let botPlayers = []; // Bot player objects
+let zombies = []; // Zombie objects
+
+const botNamesTeam1 = ['DJB_Apex', 'Strategist_1', 'DJB_Gamer', 'TacticalDJB', 'DJB_Phantom', 'AlphaStrategie', 'OmegaDJB'];
+const botNamesTeam2 = ['AutoMiz_Pro', 'Tetenafis_X', 'MizeletBot', 'SpeedyAuto', 'AutoMiz_Doom', 'Tetenafis_HQ', 'NomadAuto'];
+
+function openJoinScreen() {
+  playUISound();
+  initMultiplayer();
+  document.getElementById('joinScreen').classList.add('active');
+  updateLobbyCounts();
+}
+
+function backToMainMenu() {
+  playUISound();
+  document.getElementById('joinScreen').classList.remove('active');
+}
+
+function selectTeam(teamNum) {
+  if (teamNum === 1) {
+    let team1Count = 0;
+    for (let id in activePlayers) {
+      if (activePlayers[id].team === 1) team1Count++;
+    }
+    if (team1Count >= 5) return; // Team is full
+    
+    myTeam = 1;
+    document.getElementById('btnJoinTeam1').classList.add('selected-team1');
+    document.getElementById('btnJoinTeam2').classList.remove('selected-team2');
+  } else if (teamNum === 2) {
+    let team2Count = 0;
+    for (let id in activePlayers) {
+      if (activePlayers[id].team === 2) team2Count++;
+    }
+    if (team2Count >= 5) return; // Team is full
+    
+    myTeam = 2;
+    document.getElementById('btnJoinTeam2').classList.add('selected-team2');
+    document.getElementById('btnJoinTeam1').classList.remove('selected-team1');
+  } else {
+    myTeam = 0;
+    document.getElementById('btnJoinTeam1').classList.remove('selected-team1');
+    document.getElementById('btnJoinTeam2').classList.remove('selected-team2');
+  }
+  playUISound();
+  validateJoinForm();
+}
+
+function validateJoinForm() {
+  const nameInput = document.getElementById('playerNameInput');
+  const name = nameInput ? nameInput.value.trim() : '';
+  const btn = document.getElementById('btnConfirmJoin');
+  
+  if (name.length >= 2 && myTeam > 0) {
+    btn.disabled = false;
+  } else {
+    btn.disabled = true;
+  }
+}
+
+function confirmJoin() {
+  const nameInput = document.getElementById('playerNameInput');
+  myPlayerName = nameInput.value.trim();
+  document.getElementById('joinScreen').classList.remove('active');
+  startGame();
+}
 
 /* =========================================================
    SKIN & INVENTORY SYSTEM
@@ -1157,6 +1382,249 @@ function equipSkin(id) {
   renderInventory();
   if (state.current === GameState.PLAYING) updateWeaponSkin();
   playUISound();
+}
+
+// ==========================================
+// Multiplayer Sync Network Protocol (BroadcastChannel)
+// ==========================================
+function initMultiplayer() {
+  if (channel) return;
+  try {
+    channel = new BroadcastChannel('fps_multiplayer_channel');
+    channel.onmessage = (e) => {
+      handleChannelMessage(e.data);
+    };
+  } catch (err) {
+    console.warn('BroadcastChannel is blocked or unsupported (e.g. running on file:// protocol). Running in local simulation mode.', err);
+    // Fallback mock channel that mimics the postMessage API
+    channel = {
+      postMessage: () => {},
+      close: () => {}
+    };
+  }
+  
+  // Periodically send heartbeat
+  setInterval(() => {
+    sendHeartbeat();
+  }, 1000);
+  
+  // Periodically prune inactive players
+  setInterval(() => {
+    pruneInactivePlayers();
+  }, 1000);
+}
+
+function sendHeartbeat() {
+  if (!channel) return;
+  if (myPlayerName && myTeam) {
+    channel.postMessage({
+      type: 'heartbeat',
+      id: myPlayerId,
+      name: myPlayerName,
+      team: myTeam,
+      health: state.current === GameState.PLAYING ? state.hp : 100
+    });
+  }
+}
+
+function pruneInactivePlayers() {
+  const now = Date.now();
+  let changed = false;
+  for (let id in activePlayers) {
+    if (now - activePlayers[id].lastSeen > 2500) {
+      removeRemotePlayer(id);
+      delete activePlayers[id];
+      changed = true;
+    }
+  }
+  if (changed) {
+    updateLobbyCounts();
+    updateHUDTeamCounts();
+  }
+}
+
+function isHost() {
+  let ids = [myPlayerId];
+  for (let id in activePlayers) {
+    ids.push(id);
+  }
+  ids.sort();
+  return ids[0] === myPlayerId;
+}
+
+function updateLobbyCounts() {
+  let team1 = 0;
+  let team2 = 0;
+  
+  for (let id in activePlayers) {
+    if (activePlayers[id].team === 1) team1++;
+    if (activePlayers[id].team === 2) team2++;
+  }
+  
+  const t1Label = document.getElementById('team1JoinCount');
+  const t2Label = document.getElementById('team2JoinCount');
+  
+  if (t1Label) t1Label.textContent = `${team1}/5` + (team1 >= 5 ? ' [FULL]' : '');
+  if (t2Label) t2Label.textContent = `${team2}/5` + (team2 >= 5 ? ' [FULL]' : '');
+  
+  const btnTeam1 = document.getElementById('btnJoinTeam1');
+  const btnTeam2 = document.getElementById('btnJoinTeam2');
+  
+  if (btnTeam1) {
+    if (team1 >= 5) {
+      btnTeam1.classList.add('disabled');
+      if (myTeam === 1) selectTeam(0);
+    } else {
+      btnTeam1.classList.remove('disabled');
+    }
+  }
+  
+  if (btnTeam2) {
+    if (team2 >= 5) {
+      btnTeam2.classList.add('disabled');
+      if (myTeam === 2) selectTeam(0);
+    } else {
+      btnTeam2.classList.remove('disabled');
+    }
+  }
+  
+  validateJoinForm();
+}
+
+function updateHUDTeamCounts() {
+  let team1 = 0;
+  let team2 = 0;
+  
+  if (myTeam === 1) team1++;
+  if (myTeam === 2) team2++;
+  
+  for (let id in activePlayers) {
+    if (activePlayers[id].team === 1) team1++;
+    if (activePlayers[id].team === 2) team2++;
+  }
+  
+  botPlayers.forEach(bp => {
+    if (bp.team === 1) team1++;
+    if (bp.team === 2) team2++;
+  });
+  
+  const h1 = document.getElementById('hudTeam1Count');
+  const h2 = document.getElementById('hudTeam2Count');
+  if (h1) h1.textContent = `${team1}/5`;
+  if (h2) h2.textContent = `${team2}/5`;
+}
+
+function handleChannelMessage(msg) {
+  if (!msg || msg.id === myPlayerId) return;
+  
+  const now = Date.now();
+  
+  if (msg.type === 'heartbeat') {
+    if (!activePlayers[msg.id]) {
+      activePlayers[msg.id] = { lastSeen: now };
+    }
+    activePlayers[msg.id].name = msg.name;
+    activePlayers[msg.id].team = msg.team;
+    activePlayers[msg.id].health = msg.health;
+    activePlayers[msg.id].lastSeen = now;
+    
+    updateLobbyCounts();
+    updateHUDTeamCounts();
+  }
+  
+  else if (msg.type === 'leave') {
+    removeRemotePlayer(msg.id);
+    delete activePlayers[msg.id];
+    updateLobbyCounts();
+    updateHUDTeamCounts();
+  }
+  
+  else if (msg.type === 'player_state') {
+    if (!activePlayers[msg.id]) {
+      activePlayers[msg.id] = { name: msg.name, team: msg.team, health: msg.health, lastSeen: now };
+      updateLobbyCounts();
+      updateHUDTeamCounts();
+    } else {
+      activePlayers[msg.id].health = msg.health;
+      activePlayers[msg.id].lastSeen = now;
+    }
+    updateRemotePlayerMesh(msg);
+  }
+  
+  else if (msg.type === 'shoot') {
+    const rp = remotePlayers[msg.id];
+    if (rp && rp.mesh) {
+      playShootVisualAt(rp.mesh.position, rp.yaw, rp.pitch);
+    } else {
+      const bp = botPlayers.find(b => b.id === msg.id);
+      if (bp && bp.mesh) {
+        playShootVisualAt(bp.mesh.position, bp.yaw, bp.pitch);
+      }
+    }
+  }
+  
+  else if (msg.type === 'damage') {
+    if (msg.targetId === myPlayerId) {
+      takeDamage(msg.damage, msg.source);
+    }
+  }
+  
+  else if (msg.type === 'zombie_hit') {
+    if (isHost()) {
+      handleZombieHit(msg.zombieId, msg.damage, msg.shooterId);
+    }
+  }
+  
+  else if (msg.type === 'bot_hit') {
+    if (isHost()) {
+      handleBotHit(msg.botId, msg.damage, msg.shooterId);
+    }
+  }
+  
+  else if (msg.type === 'sync_zombies') {
+    if (!isHost()) {
+      syncZombiesFromHost(msg.zombies);
+    }
+  }
+  
+  else if (msg.type === 'sync_bots') {
+    if (!isHost()) {
+      syncBotsFromHost(msg.bots);
+    }
+  }
+  
+  else if (msg.type === 'zombie_die') {
+    addKillFeedEntry(msg.killerName, 'Zombie');
+    if (msg.killerId === myPlayerId) {
+      state.kills++;
+      state.gold += 20;
+      updateGoldDisplays();
+      playKillSound();
+      updateHUD();
+    }
+  }
+  
+  else if (msg.type === 'bot_die') {
+    addKillFeedEntry(msg.killerName, msg.botName);
+    if (msg.killerId === myPlayerId) {
+      state.kills++;
+      state.gold += 50;
+      updateGoldDisplays();
+      playKillSound();
+      updateHUD();
+    }
+  }
+  
+  else if (msg.type === 'player_die') {
+    addKillFeedEntry(msg.killerName, msg.playerName);
+    if (msg.killerId === myPlayerId) {
+      state.kills++;
+      state.gold += 100;
+      updateGoldDisplays();
+      playKillSound();
+      updateHUD();
+    }
+  }
 }
 
 /* =========================================================
@@ -1407,12 +1875,16 @@ function startGame() {
   document.getElementById('mainMenu').style.display = 'none';
   document.getElementById('loadingScreen').classList.add('active');
 
+  // Trigger heartbeat immediately to claim team slot
+  sendHeartbeat();
+  document.getElementById('botCountDisplay').textContent = 'Zombies: ' + botConfig.count;
+
   const tips = [
     'Tip: Use WASD to move, SPACE to jump, SHIFT to sprint.',
     'Tip: Press R to reload your weapon.',
     'Tip: Press B to open bot controls and customize difficulty.',
     'Tip: Press F to inspect your current weapon.',
-    'Tip: Earn gold by eliminating bots — 50 gold per kill!',
+    'Tip: Eliminate enemies — 50 gold per bot, 20 gold per zombie!',
     'Tip: Visit the shop to buy new weapon skins.',
     'Tip: Press 1 for rifle, 2 for knife.',
   ];
@@ -1441,15 +1913,34 @@ function initGame() {
   ammo = 30;
   reserve = 90;
   currentWeapon = 0;
-  playerBody = { x: 0, y: 1.7, z: 0, vx: 0, vy: 0, vz: 0, onGround: true };
+  playerBody = { x: (Math.random() - 0.5) * 60, y: 1.7, z: (Math.random() - 0.5) * 60, vx: 0, vy: 0, vz: 0, onGround: true };
   yaw = 0; pitch = 0;
-  bots = [];
+  
+  // Clear any existing entities
+  remotePlayers = {};
+  botPlayers = [];
+  zombies = [];
   bullets = [];
   shootCooldown = 0;
   recoilOffset = 0;
 
+  // Clear HTML labels
+  const container = document.getElementById('playerLabels');
+  if (container) container.innerHTML = '';
+
   document.getElementById('hud').classList.add('active');
+  
+  // Update HUD elements
+  const pName = document.getElementById('hudPlayerName');
+  const tName = document.getElementById('hudTeamName');
+  if (pName) pName.textContent = myPlayerName;
+  if (tName) {
+    tName.textContent = myTeam === 1 ? 'DJB Projet Strategique' : 'Automotive Mizelet Tetenafis';
+    tName.style.color = myTeam === 1 ? '#60a5fa' : '#fbbf24';
+  }
+  
   updateHUD();
+  updateHUDTeamCounts();
 
   // Renderer
   if (!renderer) {
@@ -1495,24 +1986,28 @@ function initGame() {
   // Build weapon
   buildWeapon();
 
-  // Spawn bots
-  spawnBots();
-
   // Clock
   clock = new THREE.Clock();
 
   // Pointer lock
   renderer.domElement.addEventListener('click', () => {
-    if (state.current === GameState.PLAYING) {
+    if (state.current === GameState.PLAYING && state.hp > 0) {
       renderer.domElement.requestPointerLock();
     }
   });
 
   document.addEventListener('pointerlockchange', () => {
-    if (!document.pointerLockElement && state.current === GameState.PLAYING) {
+    if (!document.pointerLockElement && state.current === GameState.PLAYING && state.hp > 0) {
       pauseGame();
     }
   });
+
+  // Clean listeners
+  document.removeEventListener('keydown', onKeyDown);
+  document.removeEventListener('keyup', onKeyUp);
+  document.removeEventListener('mousemove', onMouseMove);
+  document.removeEventListener('mousedown', onMouseDown);
+  document.removeEventListener('mouseup', onMouseUp);
 
   // Input
   document.addEventListener('keydown', onKeyDown);
@@ -1956,27 +2451,26 @@ function switchWeapon(slot) {
 }
 
 /* =========================================================
-   BOT SYSTEM
+   MULTIPLAYER & ZOMBIE REPLICATION & AI
    ========================================================= */
-function createBotMesh(isArmored) {
+function createPlayerMesh(team) {
   const group = new THREE.Group();
-
-  const bodyColor = isArmored ? 0x334455 : 0xcc4444;
-  const mat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.5 });
-
-  // Body
+  const color = team === 1 ? 0x3b82f6 : 0xf59e0b; // DJB (Blue), Automotive (Orange)
+  const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5 });
+  
+  // Torso
   const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.9, 0.4), mat);
   body.position.y = 1.15;
   body.castShadow = true;
   group.add(body);
-
+  
   // Head
   const headMat = new THREE.MeshStandardMaterial({ color: 0xd4a574, roughness: 0.6 });
   const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), headMat);
   head.position.y = 1.85;
   head.castShadow = true;
   group.add(head);
-
+  
   // Eyes
   const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
   const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.02), eyeMat);
@@ -1985,7 +2479,7 @@ function createBotMesh(isArmored) {
   const eyeR = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.02), eyeMat);
   eyeR.position.set(0.08, 1.9, -0.18);
   group.add(eyeR);
-
+  
   // Legs
   const legMat = new THREE.MeshStandardMaterial({ color: 0x2d3748, roughness: 0.6 });
   const legL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.25), legMat);
@@ -1996,7 +2490,7 @@ function createBotMesh(isArmored) {
   legR.position.set(0.15, 0.35, 0);
   legR.castShadow = true;
   group.add(legR);
-
+  
   // Arms
   const armL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.7, 0.2), mat);
   armL.position.set(-0.42, 1.15, 0);
@@ -2007,139 +2501,689 @@ function createBotMesh(isArmored) {
   armR.castShadow = true;
   group.add(armR);
 
-  // Armor plate (if armored)
-  if (isArmored) {
-    const armorMat = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.3, metalness: 0.6 });
-    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.1), armorMat);
-    plate.position.set(0, 1.3, -0.25);
-    group.add(plate);
-    // Helmet
-    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8, 0, Math.PI * 2, 0, Math.PI / 2), armorMat);
-    helmet.position.set(0, 2.0, 0);
-    group.add(helmet);
-  }
+  // Helmet/Cap
+  const helmetMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.3, metalness: 0.6 });
+  const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8, 0, Math.PI * 2, 0, Math.PI / 2), helmetMat);
+  helmet.position.set(0, 2.0, 0);
+  group.add(helmet);
 
+  // Weapon attachment
+  const gunMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.2 });
+  const gun = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.5), gunMat);
+  gun.position.set(0.42, 0.9, -0.2);
+  gun.rotation.x = -0.1;
+  group.add(gun);
+  
   return group;
 }
 
-function spawnBots() {
-  // Remove existing
-  bots.forEach(b => scene.remove(b.mesh));
-  bots = [];
+function createZombieMesh() {
+  const group = new THREE.Group();
+  const zombieColor = 0x2e7d32; // Decaying green
+  const mat = new THREE.MeshStandardMaterial({ color: zombieColor, roughness: 0.8 });
+  
+  // Clothes torso
+  const clothesMat = new THREE.MeshStandardMaterial({ color: 0x4e342e, roughness: 0.9 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.9, 0.4), clothesMat);
+  body.position.y = 1.15;
+  body.castShadow = true;
+  group.add(body);
+  
+  // Head
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), mat);
+  head.position.y = 1.85;
+  head.castShadow = true;
+  group.add(head);
+  
+  // Glowing red eyes
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+  const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.02), eyeMat);
+  eyeL.position.set(-0.08, 1.9, -0.18);
+  group.add(eyeL);
+  const eyeR = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.02), eyeMat);
+  eyeR.position.set(0.08, 1.9, -0.18);
+  group.add(eyeR);
+  
+  // Ripped blue pants
+  const pantsMat = new THREE.MeshStandardMaterial({ color: 0x1a237e, roughness: 0.8 });
+  const legL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.25), pantsMat);
+  legL.position.set(-0.15, 0.35, 0);
+  legL.castShadow = true;
+  group.add(legL);
+  const legR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.25), pantsMat);
+  legR.position.set(0.15, 0.35, 0);
+  legR.castShadow = true;
+  group.add(legR);
+  
+  // Zombie arms raised straight forward
+  const armL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.7, 0.2), mat);
+  armL.position.set(-0.42, 1.35, -0.25);
+  armL.rotation.x = -Math.PI / 2;
+  armL.castShadow = true;
+  group.add(armL);
+  
+  const armR = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.7, 0.2), mat);
+  armR.position.set(0.42, 1.35, -0.25);
+  armR.rotation.x = -Math.PI / 2;
+  armR.castShadow = true;
+  group.add(armR);
+  
+  return group;
+}
 
-  for (let i = 0; i < botConfig.count; i++) {
-    const isArmored = botConfig.armor;
-    const mesh = createBotMesh(isArmored);
+function updatePlayerLabels() {
+  const container = document.getElementById('playerLabels');
+  if (!container) return;
 
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 10 + Math.random() * 35;
-    const x = Math.cos(angle) * dist;
-    const z = Math.sin(angle) * dist;
+  const targets = [];
+  
+  // Remote players
+  for (let id in remotePlayers) {
+    const rp = remotePlayers[id];
+    if (rp.mesh && rp.health > 0) {
+      targets.push({ id: 'remote_' + id, mesh: rp.mesh, name: rp.name, hp: rp.health, maxHp: 100, team: rp.team, isZombie: false });
+    }
+  }
+  
+  // Bot players
+  botPlayers.forEach(bp => {
+    if (bp.mesh && bp.hp > 0) {
+      targets.push({ id: 'bot_' + bp.id, mesh: bp.mesh, name: bp.name, hp: bp.hp, maxHp: 100, team: bp.team, isZombie: false });
+    }
+  });
 
-    mesh.position.set(x, 0, z);
+  // Zombies
+  zombies.forEach(z => {
+    if (z.mesh && z.hp > 0) {
+      targets.push({ id: 'zombie_' + z.id, mesh: z.mesh, name: 'Zombie', hp: z.hp, maxHp: 100, team: 0, isZombie: true });
+    }
+  });
+
+  const currentIds = new Set();
+  
+  targets.forEach(t => {
+    currentIds.add(t.id);
+    let el = document.getElementById('label-' + t.id);
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'label-' + t.id;
+      el.className = 'player-label';
+      el.style.position = 'absolute';
+      el.style.transform = 'translate(-50%, -100%)';
+      el.style.display = 'flex';
+      el.style.flexDirection = 'column';
+      el.style.alignItems = 'center';
+      el.style.gap = '2px';
+      el.style.pointerEvents = 'none';
+      
+      const nameEl = document.createElement('div');
+      nameEl.className = 'label-name';
+      nameEl.style.fontWeight = '700';
+      nameEl.style.fontSize = '11px';
+      nameEl.style.textShadow = '0 1px 3px rgba(0,0,0,0.9)';
+      
+      if (t.isZombie) {
+        nameEl.style.color = '#ef4444';
+      } else {
+        nameEl.style.color = t.team === 1 ? '#60a5fa' : '#fbbf24';
+      }
+      
+      const barEl = document.createElement('div');
+      barEl.className = 'label-bar';
+      barEl.style.width = '40px';
+      barEl.style.height = '3px';
+      barEl.style.background = 'rgba(0,0,0,0.6)';
+      barEl.style.borderRadius = '1.5px';
+      barEl.style.overflow = 'hidden';
+      barEl.style.border = '1px solid rgba(255,255,255,0.15)';
+      
+      const fillEl = document.createElement('div');
+      fillEl.className = 'label-fill';
+      fillEl.style.height = '100%';
+      fillEl.style.background = t.isZombie ? '#dc2626' : '#22c55e';
+      
+      barEl.appendChild(fillEl);
+      el.appendChild(nameEl);
+      el.appendChild(barEl);
+      container.appendChild(el);
+    }
+    
+    el.querySelector('.label-name').textContent = t.name;
+    const pct = Math.max(0, Math.min(100, (t.hp / t.maxHp) * 100));
+    el.querySelector('.label-fill').style.width = pct + '%';
+    
+    // Position label in 2D space above WebGL meshes
+    const tempV = new THREE.Vector3();
+    tempV.setFromMatrixPosition(t.mesh.matrixWorld);
+    tempV.y += t.isZombie ? 2.1 : 2.2;
+    tempV.project(camera);
+    
+    if (tempV.z > 1) {
+      el.style.display = 'none';
+    } else {
+      el.style.display = '';
+      const x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (tempV.y * -0.5 + 0.5) * window.innerHeight;
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+    }
+  });
+
+  // Prune labels for dead entities
+  Array.from(container.children).forEach(child => {
+    const id = child.id.replace('label-', '');
+    if (!currentIds.has(id)) {
+      child.remove();
+    }
+  });
+}
+
+function updateRemotePlayerMesh(msg) {
+  let rp = remotePlayers[msg.id];
+  if (!rp) {
+    const mesh = createPlayerMesh(msg.team);
     scene.add(mesh);
+    rp = {
+      mesh: mesh,
+      name: msg.name,
+      team: msg.team,
+      health: msg.health,
+      yaw: msg.yaw,
+      pitch: msg.pitch
+    };
+    remotePlayers[msg.id] = rp;
+  }
+  
+  rp.targetX = msg.x;
+  rp.targetY = msg.y - 1.7; // Align height to ground feet
+  rp.targetZ = msg.z;
+  rp.yaw = msg.yaw;
+  rp.pitch = msg.pitch;
+  rp.health = msg.health;
+}
 
-    const speedMult = botConfig.speed === 0 ? 0.5 : botConfig.speed === 1 ? 1 : 2;
+function removeRemotePlayer(id) {
+  const rp = remotePlayers[id];
+  if (rp) {
+    if (rp.mesh) scene.remove(rp.mesh);
+    delete remotePlayers[id];
+  }
+  const label = document.getElementById('label-remote_' + id);
+  if (label) label.remove();
+}
 
-    bots.push({
-      mesh,
-      hp: isArmored ? 200 : 100,
-      maxHp: isArmored ? 200 : 100,
-      speed: (1.5 + Math.random()) * speedMult,
-      targetX: x + (Math.random() - 0.5) * 20,
-      targetZ: z + (Math.random() - 0.5) * 20,
-      wanderTimer: Math.random() * 3,
-      armored: isArmored,
-      jumpTimer: 0,
-      vy: 0,
-      onGround: true,
-      walkCycle: Math.random() * Math.PI * 2
+
+
+function updateHostEntities(dt) {
+  if (!isHost()) return;
+  
+  // Calculate slot counts to fill teams to 5v5
+  let team1Real = 0;
+  let team2Real = 0;
+  if (myTeam === 1) team1Real++;
+  if (myTeam === 2) team2Real++;
+  
+  for (let id in activePlayers) {
+    if (activePlayers[id].team === 1) team1Real++;
+    if (activePlayers[id].team === 2) team2Real++;
+  }
+  
+  const team1BotsNeeded = Math.max(0, 5 - team1Real);
+  const team2BotsNeeded = Math.max(0, 5 - team2Real);
+  
+  maintainBotPlayers(team1BotsNeeded, 1);
+  maintainBotPlayers(team2BotsNeeded, 2);
+  maintainZombies();
+  
+  updateBotPlayersHost(dt);
+  updateZombiesHost(dt);
+  
+  // Broadcast synced arrays to other tabs
+  const now = Date.now();
+  if (now - lastHostSyncTime > 40) {
+    lastHostSyncTime = now;
+    
+    channel.postMessage({
+      type: 'sync_bots',
+      bots: botPlayers.map(bp => ({
+        id: bp.id,
+        name: bp.name,
+        team: bp.team,
+        x: bp.mesh.position.x,
+        y: bp.mesh.position.y,
+        z: bp.mesh.position.z,
+        hp: bp.hp,
+        yaw: bp.yaw,
+        pitch: bp.pitch,
+        activeWeapon: bp.activeWeapon,
+        shooting: bp.shooting
+      }))
+    });
+    
+    channel.postMessage({
+      type: 'sync_zombies',
+      zombies: zombies.map(z => ({
+        id: z.id,
+        x: z.mesh.position.x,
+        y: z.mesh.position.y,
+        z: z.mesh.position.z,
+        hp: z.hp,
+        yaw: z.mesh.rotation.y
+      }))
     });
   }
 }
 
-function updateBots(dt) {
-  const speedMult = botConfig.speed === 0 ? 0.5 : botConfig.speed === 1 ? 1 : 2;
-
-  bots.forEach(bot => {
-    // Wander AI
-    bot.wanderTimer -= dt;
-    if (bot.wanderTimer <= 0) {
-      bot.targetX = (Math.random() - 0.5) * 80;
-      bot.targetZ = (Math.random() - 0.5) * 80;
-      bot.wanderTimer = 2 + Math.random() * 4;
+function maintainBotPlayers(neededCount, team) {
+  const currentBots = botPlayers.filter(bp => bp.team === team);
+  if (currentBots.length < neededCount) {
+    const botId = 'bot_' + Math.random().toString(36).substr(2, 9);
+    const names = team === 1 ? botNamesTeam1 : botNamesTeam2;
+    const name = names[Math.floor(Math.random() * names.length)] + '_' + Math.floor(Math.random() * 100);
+    
+    const mesh = createPlayerMesh(team);
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 10 + Math.random() * 30;
+    mesh.position.set(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
+    scene.add(mesh);
+    
+    botPlayers.push({
+      id: botId,
+      name: name,
+      team: team,
+      mesh: mesh,
+      hp: botConfig.armor ? 200 : 100,
+      maxHp: botConfig.armor ? 200 : 100,
+      yaw: 0,
+      pitch: 0,
+      activeWeapon: 0,
+      speed: (2 + Math.random() * 2) * (botConfig.speed === 0 ? 0.5 : botConfig.speed === 1 ? 1 : 2),
+      targetX: mesh.position.x,
+      targetZ: mesh.position.z,
+      wanderTimer: 0,
+      shootTimer: 0,
+      shooting: false,
+      onGround: true,
+      vy: 0
+    });
+    updateHUDTeamCounts();
+  } else if (currentBots.length > neededCount) {
+    const toRemove = currentBots[0];
+    const idx = botPlayers.indexOf(toRemove);
+    if (idx > -1) {
+      if (toRemove.mesh) scene.remove(toRemove.mesh);
+      botPlayers.splice(idx, 1);
     }
+    const label = document.getElementById('label-bot_' + toRemove.id);
+    if (label) label.remove();
+    updateHUDTeamCounts();
+  }
+}
 
-    const dx = bot.targetX - bot.mesh.position.x;
-    const dz = bot.targetZ - bot.mesh.position.z;
-    const dist = Math.sqrt(dx * dx + dz * dz);
+function maintainZombies() {
+  const maxZombies = botConfig.count;
+  if (zombies.length < maxZombies) {
+    const zombieId = 'zombie_' + Math.random().toString(36).substr(2, 9);
+    const mesh = createZombieMesh();
+    
+    const side = Math.floor(Math.random() * 4);
+    let x = 0, z = 0;
+    if (side === 0) { x = -45; z = (Math.random() - 0.5) * 90; }
+    else if (side === 1) { x = 45; z = (Math.random() - 0.5) * 90; }
+    else if (side === 2) { x = (Math.random() - 0.5) * 90; z = -45; }
+    else { x = (Math.random() - 0.5) * 90; z = 45; }
+    
+    mesh.position.set(x, 0, z);
+    scene.add(mesh);
+    
+    zombies.push({
+      id: zombieId,
+      mesh: mesh,
+      hp: 100,
+      maxHp: 100,
+      speed: (1.5 + Math.random() * 1.5) * (botConfig.speed === 0 ? 0.5 : botConfig.speed === 1 ? 1 : 2),
+      attackTimer: 0,
+      attackCooldown: 1.0,
+      vy: 0,
+      onGround: true
+    });
+  }
+}
 
-    if (dist > 1) {
-      const moveSpeed = bot.speed * speedMult * dt;
-      bot.mesh.position.x += (dx / dist) * moveSpeed;
-      bot.mesh.position.z += (dz / dist) * moveSpeed;
-
-      // Face movement direction
-      bot.mesh.rotation.y = Math.atan2(dx, dz);
-
-      // Walk animation (leg bobbing)
-      bot.walkCycle += dt * 8 * speedMult;
-      const legBob = Math.sin(bot.walkCycle) * 0.15;
-      if (bot.mesh.children[3]) bot.mesh.children[3].position.y = 0.35 + legBob * 0.1;
-      if (bot.mesh.children[4]) bot.mesh.children[4].position.y = 0.35 - legBob * 0.1;
-      // Arm swing
-      if (bot.mesh.children[5]) bot.mesh.children[5].rotation.x = legBob * 0.3;
-      if (bot.mesh.children[6]) bot.mesh.children[6].rotation.x = -legBob * 0.3;
-    }
-
-    // Jumping
-    if (botConfig.jump) {
-      bot.jumpTimer -= dt;
-      if (bot.jumpTimer <= 0 && bot.onGround) {
-        bot.vy = 5;
-        bot.onGround = false;
-        bot.jumpTimer = 1.5 + Math.random() * 3;
+function updateZombiesHost(dt) {
+  zombies.forEach(z => {
+    let target = null;
+    let minDist = Infinity;
+    
+    // Zombies target the nearest alive player from EITHER team
+    if (state.hp > 0) {
+      const dist = z.mesh.position.distanceTo(camera.position);
+      if (dist < minDist) {
+        minDist = dist;
+        target = { type: 'local', x: camera.position.x, z: camera.position.z, id: myPlayerId };
       }
     }
-
-    // Gravity
-    if (!bot.onGround) {
-      bot.vy -= 15 * dt;
-      bot.mesh.position.y += bot.vy * dt;
-      if (bot.mesh.position.y <= 0) {
-        bot.mesh.position.y = 0;
-        bot.vy = 0;
-        bot.onGround = true;
+    
+    for (let id in remotePlayers) {
+      const rp = remotePlayers[id];
+      if (rp.health > 0) {
+        const rpPos = new THREE.Vector3(rp.targetX, 0, rp.targetZ);
+        const dist = z.mesh.position.distanceTo(rpPos);
+        if (dist < minDist) {
+          minDist = dist;
+          target = { type: 'remote', x: rp.targetX, z: rp.targetZ, id: id };
+        }
       }
     }
+    
+    botPlayers.forEach(bp => {
+      if (bp.hp > 0) {
+        const dist = z.mesh.position.distanceTo(bp.mesh.position);
+        if (dist < minDist) {
+          minDist = dist;
+          target = { type: 'bot', x: bp.mesh.position.x, z: bp.mesh.position.z, id: bp.id, obj: bp };
+        }
+      }
+    });
+    
+    if (target) {
+      const dx = target.x - z.mesh.position.x;
+      const dz = target.z - z.mesh.position.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      
+      if (dist > 0.1) {
+        const moveSpeed = z.speed * dt;
+        z.mesh.position.x += (dx / dist) * moveSpeed;
+        z.mesh.position.z += (dz / dist) * moveSpeed;
+        z.mesh.rotation.y = Math.atan2(dx, dz);
+        
+        // Zombie walk leg swing animation
+        const time = performance.now() * 0.005;
+        const swing = Math.sin(time * z.speed) * 0.4;
+        if (z.mesh.children[4]) z.mesh.children[4].rotation.x = swing;
+        if (z.mesh.children[5]) z.mesh.children[5].rotation.x = -swing;
+      }
+      
+      // Zombie damage logic
+      if (dist < 1.3) {
+        z.attackTimer -= dt;
+        if (z.attackTimer <= 0) {
+          z.attackTimer = z.attackCooldown;
+          if (target.type === 'local') {
+            takeDamage(15, 'Zombie');
+          } else if (target.type === 'remote') {
+            channel.postMessage({
+              type: 'damage',
+              targetId: target.id,
+              damage: 15,
+              source: 'Zombie'
+            });
+          } else if (target.type === 'bot') {
+            damageBotPlayer(target.obj, 15, 'Zombie');
+          }
+        }
+      }
+    }
+  });
+}
 
-    // Keep in bounds
-    bot.mesh.position.x = Math.max(-45, Math.min(45, bot.mesh.position.x));
-    bot.mesh.position.z = Math.max(-45, Math.min(45, bot.mesh.position.z));
-
-    // Simple obstacle avoidance
+function updateBotPlayersHost(dt) {
+  botPlayers.forEach(bp => {
+    let target = null;
+    let minDist = 30; // Vision detection range
+    
+    // Bot players target opposite team players and zombies
+    zombies.forEach(z => {
+      const dist = bp.mesh.position.distanceTo(z.mesh.position);
+      if (dist < minDist) {
+        minDist = dist;
+        target = { type: 'zombie', id: z.id, x: z.mesh.position.x, z: z.mesh.position.z, obj: z };
+      }
+    });
+    
+    if (state.hp > 0 && myTeam !== bp.team) {
+      const dist = bp.mesh.position.distanceTo(camera.position);
+      if (dist < minDist) {
+        minDist = dist;
+        target = { type: 'local', id: myPlayerId, x: camera.position.x, z: camera.position.z };
+      }
+    }
+    
+    for (let id in remotePlayers) {
+      const rp = remotePlayers[id];
+      if (rp.health > 0 && rp.team !== bp.team) {
+        const rpPos = new THREE.Vector3(rp.targetX, 0, rp.targetZ);
+        const dist = bp.mesh.position.distanceTo(rpPos);
+        if (dist < minDist) {
+          minDist = dist;
+          target = { type: 'remote', id: id, x: rp.targetX, z: rp.targetZ };
+        }
+      }
+    }
+    
+    botPlayers.forEach(otherBp => {
+      if (otherBp.id !== bp.id && otherBp.hp > 0 && otherBp.team !== bp.team) {
+        const dist = bp.mesh.position.distanceTo(otherBp.mesh.position);
+        if (dist < minDist) {
+          minDist = dist;
+          target = { type: 'bot', id: otherBp.id, x: otherBp.mesh.position.x, z: otherBp.mesh.position.z, obj: otherBp };
+        }
+      }
+    });
+    
+    bp.shooting = false;
+    
+    if (target) {
+      const dx = target.x - bp.mesh.position.x;
+      const dz = target.z - bp.mesh.position.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      
+      bp.yaw = Math.atan2(dx, dz);
+      bp.pitch = Math.atan2(bp.mesh.position.y + 1.3 - (target.type === 'local' ? camera.position.y : 1.3), dist);
+      bp.mesh.rotation.y = bp.yaw;
+      
+      if (dist > 8) {
+        const moveSpeed = bp.speed * dt;
+        bp.mesh.position.x += (dx / dist) * moveSpeed;
+        bp.mesh.position.z += (dz / dist) * moveSpeed;
+      }
+      
+      // Shooting timer AI
+      bp.shootTimer -= dt;
+      if (bp.shootTimer <= 0) {
+        bp.shootTimer = 0.4 + Math.random() * 0.4;
+        bp.shooting = true;
+        
+        channel.postMessage({
+          type: 'shoot',
+          id: bp.id
+        });
+        
+        if (Math.random() < 0.35) { // 35% accuracy
+          const damage = 10;
+          if (target.type === 'local') {
+            takeDamage(damage, bp.name);
+          } else if (target.type === 'remote') {
+            channel.postMessage({
+              type: 'damage',
+              targetId: target.id,
+              damage: damage,
+              source: bp.name
+            });
+          } else if (target.type === 'zombie') {
+            handleZombieHit(target.id, damage, bp.id);
+          } else if (target.type === 'bot') {
+            damageBotPlayer(target.obj, damage, bp.name);
+          }
+        }
+      }
+    } else {
+      // Idle wander behavior
+      bp.wanderTimer -= dt;
+      if (bp.wanderTimer <= 0) {
+        bp.targetX = (Math.random() - 0.5) * 80;
+        bp.targetZ = (Math.random() - 0.5) * 80;
+        bp.wanderTimer = 2 + Math.random() * 4;
+      }
+      
+      const dx = bp.targetX - bp.mesh.position.x;
+      const dz = bp.targetZ - bp.mesh.position.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      
+      if (dist > 1) {
+        const moveSpeed = bp.speed * 0.5 * dt;
+        bp.mesh.position.x += (dx / dist) * moveSpeed;
+        bp.mesh.position.z += (dz / dist) * moveSpeed;
+        bp.yaw = Math.atan2(dx, dz);
+        bp.mesh.rotation.y = bp.yaw;
+      }
+    }
+    
+    // Bounds check and obstacle pushback
+    bp.mesh.position.x = Math.max(-48, Math.min(48, bp.mesh.position.x));
+    bp.mesh.position.z = Math.max(-48, Math.min(48, bp.mesh.position.z));
+    
     obstacles.forEach(obs => {
       const ox = obs.pos[0], oz = obs.pos[2];
-      const hw = obs.size[0] / 2 + 0.8, hd = obs.size[2] / 2 + 0.8;
-      if (Math.abs(bot.mesh.position.x - ox) < hw && Math.abs(bot.mesh.position.z - oz) < hd) {
-        // Push away
-        const pushX = bot.mesh.position.x - ox;
-        const pushZ = bot.mesh.position.z - oz;
+      const hw = obs.size[0] / 2 + 0.6, hd = obs.size[2] / 2 + 0.6;
+      if (Math.abs(bp.mesh.position.x - ox) < hw && Math.abs(bp.mesh.position.z - oz) < hd) {
+        const pushX = bp.mesh.position.x - ox;
+        const pushZ = bp.mesh.position.z - oz;
         const pm = Math.sqrt(pushX * pushX + pushZ * pushZ) || 1;
-        bot.mesh.position.x += (pushX / pm) * dt * 5;
-        bot.mesh.position.z += (pushZ / pm) * dt * 5;
-        bot.wanderTimer = 0; // Pick new target
+        bp.mesh.position.x += (pushX / pm) * dt * 5;
+        bp.mesh.position.z += (pushZ / pm) * dt * 5;
+        bp.wanderTimer = 0;
       }
     });
   });
 }
 
-// Bot control UI functions
+function damageBotPlayer(bot, damage, sourceName) {
+  if (bot.hp <= 0) return;
+  bot.hp -= damage;
+  
+  if (bot.hp <= 0) {
+    bot.hp = 0;
+    channel.postMessage({
+      type: 'bot_die',
+      botId: bot.id,
+      botName: bot.name,
+      killerId: sourceName === 'Zombie' ? 'zombie' : sourceName === myPlayerName ? myPlayerId : '',
+      killerName: sourceName
+    });
+    
+    scene.remove(bot.mesh);
+    const idx = botPlayers.indexOf(bot);
+    if (idx > -1) botPlayers.splice(idx, 1);
+    
+    const label = document.getElementById('label-bot_' + bot.id);
+    if (label) label.remove();
+    updateHUDTeamCounts();
+  }
+}
+
+function handleZombieHit(zombieId, damage, shooterId) {
+  const zombie = zombies.find(z => z.id === zombieId);
+  if (zombie) {
+    zombie.hp -= damage;
+    if (zombie.hp <= 0) {
+      zombie.hp = 0;
+      
+      let shooterName = 'Player';
+      if (shooterId === myPlayerId) shooterName = myPlayerName;
+      else if (activePlayers[shooterId]) shooterName = activePlayers[shooterId].name;
+      
+      channel.postMessage({
+        type: 'zombie_die',
+        zombieId: zombie.id,
+        killerId: shooterId,
+        killerName: shooterName
+      });
+      
+      scene.remove(zombie.mesh);
+      const idx = zombies.indexOf(zombie);
+      if (idx > -1) zombies.splice(idx, 1);
+      
+      const label = document.getElementById('label-zombie_' + zombie.id);
+      if (label) label.remove();
+    }
+  }
+}
+
+function handleBotHit(botId, damage, shooterId) {
+  const bot = botPlayers.find(bp => bp.id === botId);
+  if (bot) {
+    let shooterName = 'Player';
+    if (shooterId === myPlayerId) shooterName = myPlayerName;
+    else if (activePlayers[shooterId]) shooterName = activePlayers[shooterId].name;
+    damageBotPlayer(bot, damage, shooterName);
+  }
+}
+
+function syncZombiesFromHost(hostZombies) {
+  const hostZombieIds = new Set(hostZombies.map(hz => hz.id));
+  
+  for (let i = zombies.length - 1; i >= 0; i--) {
+    const z = zombies[i];
+    if (!hostZombieIds.has(z.id)) {
+      if (z.mesh) scene.remove(z.mesh);
+      zombies.splice(i, 1);
+      const label = document.getElementById('label-zombie_' + z.id);
+      if (label) label.remove();
+    }
+  }
+  
+  hostZombies.forEach(hz => {
+    let z = zombies.find(localZ => localZ.id === hz.id);
+    if (!z) {
+      const mesh = createZombieMesh();
+      scene.add(mesh);
+      z = { id: hz.id, mesh: mesh, hp: hz.hp, targetX: hz.x, targetZ: hz.z };
+      zombies.push(z);
+    }
+    z.targetX = hz.x;
+    z.targetY = hz.y;
+    z.targetZ = hz.z;
+    z.mesh.rotation.y = hz.yaw;
+    z.hp = hz.hp;
+  });
+}
+
+function syncBotsFromHost(hostBots) {
+  const hostBotIds = new Set(hostBots.map(hb => hb.id));
+  
+  for (let i = botPlayers.length - 1; i >= 0; i--) {
+    const bp = botPlayers[i];
+    if (!hostBotIds.has(bp.id)) {
+      if (bp.mesh) scene.remove(bp.mesh);
+      botPlayers.splice(i, 1);
+      const label = document.getElementById('label-bot_' + bp.id);
+      if (label) label.remove();
+    }
+  }
+  
+  hostBots.forEach(hb => {
+    let bp = botPlayers.find(localBp => localBp.id === hb.id);
+    if (!bp) {
+      const mesh = createPlayerMesh(hb.team);
+      scene.add(mesh);
+      bp = { id: hb.id, name: hb.name, team: hb.team, mesh: mesh, hp: hb.hp, targetX: hb.x, targetZ: hb.z };
+      botPlayers.push(bp);
+    }
+    bp.targetX = hb.x;
+    bp.targetY = hb.y;
+    bp.targetZ = hb.z;
+    bp.yaw = hb.yaw;
+    bp.pitch = hb.pitch;
+    bp.hp = hb.hp;
+  });
+  updateHUDTeamCounts();
+}
+
 function changeBotCount(delta) {
   playUISound();
-  botConfig.count = Math.max(1, Math.min(20, botConfig.count + delta));
-  document.getElementById('botCountDisplay').textContent = 'Bots: ' + botConfig.count;
-  spawnBots();
+  botConfig.count = Math.max(1, Math.min(15, botConfig.count + delta));
+  document.getElementById('botCountDisplay').textContent = 'Zombies: ' + botConfig.count;
 }
 
 function cycleBotSpeed() {
@@ -2156,7 +3200,6 @@ function toggleBotArmor() {
   document.querySelector('#botControlPanel .ctrl-btn:nth-child(5)').textContent = 'Armor: ' + (botConfig.armor ? 'On' : 'Off');
   if (botConfig.armor) document.querySelector('#botControlPanel .ctrl-btn:nth-child(5)').classList.add('active-ctrl');
   else document.querySelector('#botControlPanel .ctrl-btn:nth-child(5)').classList.remove('active-ctrl');
-  spawnBots();
 }
 
 function toggleBotJump() {
@@ -2169,26 +3212,32 @@ function toggleBotJump() {
 
 function resetBots() {
   playUISound();
-  spawnBots();
+  // Clear zombies and let maintain spawn fresh
+  zombies.forEach(z => { if (z.mesh) scene.remove(z.mesh); });
+  zombies = [];
+  const container = document.getElementById('playerLabels');
+  if (container) container.innerHTML = '';
 }
 
 /* =========================================================
-   SHOOTING & BULLETS
+   SHOOTING, HIT DETECTION, DAMAGE & DEATH
    ========================================================= */
 let mouseDown = false;
+let damageVignetteTimer = 0;
+let lastKillerName = '';
 
 function shoot() {
+  if (state.hp <= 0) return;
   if (currentWeapon === 1) return; // Can't shoot with knife
   if (ammo <= 0 || reloading) return;
   if (shootCooldown > 0) return;
 
   ammo--;
-  shootCooldown = 0.1; // Fire rate
+  shootCooldown = 0.1;
   recoilOffset = 0.04;
 
   playShootSound();
 
-  // Muzzle flash
   if (muzzleFlash) {
     muzzleFlash.material.opacity = 1;
     setTimeout(() => { if (muzzleFlash) muzzleFlash.material.opacity = 0; }, 50);
@@ -2198,75 +3247,100 @@ function shoot() {
   const raycaster = new THREE.Raycaster();
   raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
 
-  // Check bot hits
-  let hitBot = null;
   let closestDist = Infinity;
+  let hitType = ''; // 'bot', 'remote', 'zombie'
+  let hitTarget = null;
 
-  bots.forEach(bot => {
-    // Create bounding box for bot
-    const botPos = bot.mesh.position.clone();
-    botPos.y += 1; // Center of bot
-
-    const dir = raycaster.ray.direction;
-    const origin = raycaster.ray.origin;
-
-    // Simple sphere intersection
-    const toBot = botPos.clone().sub(origin);
-    const projLen = toBot.dot(dir);
+  // 1. Check Zombies
+  zombies.forEach(z => {
+    const pos = z.mesh.position.clone();
+    pos.y += 1.0; // Center of zombie
+    const toTarget = pos.clone().sub(raycaster.ray.origin);
+    const projLen = toTarget.dot(raycaster.ray.direction);
     if (projLen < 0) return;
-
-    const closest = origin.clone().add(dir.clone().multiplyScalar(projLen));
-    const dist = closest.distanceTo(botPos);
-
-    if (dist < 0.8 && projLen < closestDist) { // Hit radius
+    
+    const closest = raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(projLen));
+    const dist = closest.distanceTo(pos);
+    if (dist < 0.8 && projLen < closestDist) {
       closestDist = projLen;
-      hitBot = bot;
+      hitTarget = z;
+      hitType = 'zombie';
     }
   });
 
-  if (hitBot) {
-    const damage = hitBot.armored ? 25 : 34;
-    hitBot.hp -= damage;
+  // 2. Check Bot Players (only opposite team - Friendly fire disabled)
+  botPlayers.forEach(bp => {
+    if (bp.team === myTeam) return; 
+    
+    const pos = bp.mesh.position.clone();
+    pos.y += 1.0;
+    const toTarget = pos.clone().sub(raycaster.ray.origin);
+    const projLen = toTarget.dot(raycaster.ray.direction);
+    if (projLen < 0) return;
+    
+    const closest = raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(projLen));
+    const dist = closest.distanceTo(pos);
+    if (dist < 0.8 && projLen < closestDist) {
+      closestDist = projLen;
+      hitTarget = bp;
+      hitType = 'bot';
+    }
+  });
+
+  // 3. Check Remote Players (only opposite team - Friendly fire disabled)
+  for (let id in remotePlayers) {
+    const rp = remotePlayers[id];
+    if (rp.team === myTeam) continue;
+    
+    const pos = rp.mesh.position.clone();
+    pos.y += 1.0;
+    const toTarget = pos.clone().sub(raycaster.ray.origin);
+    const projLen = toTarget.dot(raycaster.ray.direction);
+    if (projLen < 0) return;
+    
+    const closest = raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(projLen));
+    const dist = closest.distanceTo(pos);
+    if (dist < 0.8 && projLen < closestDist) {
+      closestDist = projLen;
+      hitTarget = { id: id, obj: rp };
+      hitType = 'remote';
+    }
+  }
+
+  if (hitTarget) {
     playHitSound();
     showHitMarker();
-
-    if (hitBot.hp <= 0) {
-      // Kill
-      state.kills++;
-      state.gold += 50;
-      updateGoldDisplays();
-      playKillSound();
-      addKillFeed(hitBot.armored ? 'Armored Bot' : 'Bot');
-
-      // Respawn the bot
-      scene.remove(hitBot.mesh);
-      const idx = bots.indexOf(hitBot);
-      if (idx > -1) bots.splice(idx, 1);
-
-      // Spawn replacement after delay
-      setTimeout(() => {
-        if (state.current !== GameState.PLAYING) return;
-        const mesh = createBotMesh(botConfig.armor);
-        const angle = Math.random() * Math.PI * 2;
-        const dist = 15 + Math.random() * 30;
-        mesh.position.set(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
-        scene.add(mesh);
-        const speedMult = botConfig.speed === 0 ? 0.5 : botConfig.speed === 1 ? 1 : 2;
-        bots.push({
-          mesh,
-          hp: botConfig.armor ? 200 : 100,
-          maxHp: botConfig.armor ? 200 : 100,
-          speed: (1.5 + Math.random()) * speedMult,
-          targetX: (Math.random() - 0.5) * 80,
-          targetZ: (Math.random() - 0.5) * 80,
-          wanderTimer: Math.random() * 3,
-          armored: botConfig.armor,
-          jumpTimer: 0,
-          vy: 0,
-          onGround: true,
-          walkCycle: Math.random() * Math.PI * 2
+    const damage = 34; // Weapon base damage
+    
+    if (hitType === 'zombie') {
+      if (isHost()) {
+        handleZombieHit(hitTarget.id, damage, myPlayerId);
+      } else {
+        channel.postMessage({
+          type: 'zombie_hit',
+          zombieId: hitTarget.id,
+          damage: damage,
+          shooterId: myPlayerId
         });
-      }, 1500);
+      }
+    } else if (hitType === 'bot') {
+      if (isHost()) {
+        handleBotHit(hitTarget.id, damage, myPlayerId);
+      } else {
+        channel.postMessage({
+          type: 'bot_hit',
+          botId: hitTarget.id,
+          damage: damage,
+          shooterId: myPlayerId
+        });
+      }
+    } else if (hitType === 'remote') {
+      channel.postMessage({
+        type: 'damage',
+        targetId: hitTarget.id,
+        damage: damage,
+        source: myPlayerName
+      });
     }
   }
 
@@ -2284,12 +3358,17 @@ function shoot() {
   scene.add(tracer);
   bullets.push({ mesh: tracer, dir: bulletDir.clone(), life: 0.3, speed: 100 });
 
-  // Camera recoil
-  pitch += 0.008;
+  pitch += 0.008; // Recoil
 
   updateHUD();
 
-  // Auto reload
+  if (channel) {
+    channel.postMessage({
+      type: 'shoot',
+      id: myPlayerId
+    });
+  }
+
   if (ammo <= 0 && reserve > 0) reload();
 }
 
@@ -2310,18 +3389,125 @@ function reload() {
 
 function showHitMarker() {
   const hm = document.getElementById('hitMarker');
-  hm.classList.remove('show');
-  void hm.offsetWidth; // Force reflow
-  hm.classList.add('show');
+  if (hm) {
+    hm.classList.remove('show');
+    void hm.offsetWidth;
+    hm.classList.add('show');
+  }
 }
 
-function addKillFeed(name) {
+function addKillFeedEntry(killerName, targetName) {
   const feed = document.getElementById('killFeed');
+  if (!feed) return;
   const entry = document.createElement('div');
   entry.className = 'kill-entry';
-  entry.innerHTML = `<span style="color:var(--accent)">You</span> ✕ <span style="color:var(--danger)">${name}</span>`;
+  
+  const killerColor = killerName === myPlayerName ? 'var(--accent)' : 'var(--text)';
+  const targetColor = targetName === myPlayerName ? 'var(--danger)' : 'var(--text-dim)';
+  
+  entry.innerHTML = `<span style="color:${killerColor}">${killerName}</span> ✕ <span style="color:${targetColor}">${targetName}</span>`;
   feed.appendChild(entry);
   setTimeout(() => entry.remove(), 3000);
+}
+
+function takeDamage(amount, sourceName) {
+  if (state.hp <= 0 || state.current !== GameState.PLAYING) return;
+  
+  state.hp -= amount;
+  updateHUD();
+  
+  const vig = document.getElementById('damageVignette');
+  if (vig) {
+    vig.style.opacity = '1';
+    damageVignetteTimer = 0.2;
+  }
+  
+  playHitSound();
+  
+  if (state.hp <= 0) {
+    state.hp = 0;
+    lastKillerName = sourceName || 'Enemy';
+    die();
+  }
+}
+
+function die() {
+  document.exitPointerLock();
+  showDeathScreen();
+  
+  if (channel) {
+    channel.postMessage({
+      type: 'player_die',
+      playerName: myPlayerName,
+      killerName: lastKillerName
+    });
+  }
+}
+
+function showDeathScreen() {
+  const ds = document.getElementById('deathScreen');
+  if (ds) ds.style.display = 'flex';
+  
+  const msg = document.getElementById('deathMessage');
+  if (msg) msg.textContent = `You were eliminated by ${lastKillerName}`;
+  
+  let countdown = 3;
+  const timer = document.getElementById('respawnTimerDisplay');
+  if (timer) timer.textContent = `Respawning in ${countdown}...`;
+  
+  const interval = setInterval(() => {
+    countdown--;
+    if (timer) timer.textContent = `Respawning in ${countdown}...`;
+    if (countdown <= 0) {
+      clearInterval(interval);
+      respawn();
+    }
+  }, 1000);
+}
+
+function respawn() {
+  const ds = document.getElementById('deathScreen');
+  if (ds) ds.style.display = 'none';
+  
+  state.hp = 100;
+  ammo = 30;
+  reserve = 90;
+  updateHUD();
+  
+  playerBody.x = (Math.random() - 0.5) * 80;
+  playerBody.z = (Math.random() - 0.5) * 80;
+  playerBody.y = 1.7;
+  playerBody.vx = 0;
+  playerBody.vy = 0;
+  playerBody.vz = 0;
+  playerBody.onGround = true;
+  
+  if (state.current === GameState.PLAYING) {
+    renderer.domElement.requestPointerLock();
+  }
+}
+
+function broadcastPlayerState() {
+  if (state.current !== GameState.PLAYING) return;
+  const now = Date.now();
+  if (now - lastBroadcastTime < 33) return; // Limit to ~30Hz
+  lastBroadcastTime = now;
+  
+  if (channel) {
+    channel.postMessage({
+      type: 'player_state',
+      id: myPlayerId,
+      name: myPlayerName,
+      team: myTeam,
+      health: state.hp,
+      x: playerBody.x,
+      y: playerBody.y,
+      z: playerBody.z,
+      yaw: yaw,
+      pitch: pitch,
+      activeWeapon: currentWeapon
+    });
+  }
 }
 
 /* =========================================================
@@ -2334,7 +3520,7 @@ function onKeyDown(e) {
     else if (state.current === GameState.PAUSED) resumeGame();
     if (document.getElementById('inspectOverlay').classList.contains('active')) closeInspect();
   }
-  if (state.current !== GameState.PLAYING) return;
+  if (state.current !== GameState.PLAYING || state.hp <= 0) return;
   if (e.code === 'KeyR') reload();
   if (e.code === 'KeyB') toggleBotPanel();
   if (e.code === 'KeyF') toggleInGameInspect();
@@ -2347,7 +3533,7 @@ function onKeyUp(e) {
 }
 
 function onMouseMove(e) {
-  if (state.current !== GameState.PLAYING || !document.pointerLockElement) return;
+  if (state.current !== GameState.PLAYING || state.hp <= 0 || !document.pointerLockElement) return;
   const sens = state.settings.sensitivity * 0.001;
   yaw -= e.movementX * sens;
   pitch -= e.movementY * sens;
@@ -2355,6 +3541,7 @@ function onMouseMove(e) {
 }
 
 function onMouseDown(e) {
+  if (state.hp <= 0) return;
   if (e.button === 0) mouseDown = true;
 }
 
@@ -2372,13 +3559,14 @@ let inspecting = false;
 function toggleInGameInspect() {
   if (!inspecting) {
     inspecting = true;
-    // Animate weapon to center of screen
   } else {
     inspecting = false;
   }
 }
 
 function updatePlayer(dt) {
+  if (state.hp <= 0) return; // Prevent movement when dead
+  
   const speed = keys['ShiftLeft'] || keys['ShiftRight'] ? 8 : 5;
   const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
   const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
@@ -2409,10 +3597,8 @@ function updatePlayer(dt) {
     const hd = obs.size[2] / 2 + playerRadius;
     const oy = obs.pos[1];
 
-    // Only collide if player is at obstacle height
     if (playerBody.y - 1.7 < oy + hh && playerBody.y > oy - hh) {
       if (Math.abs(newX - ox) < hw && Math.abs(newZ - oz) < hd) {
-        // Push out
         const overlapX = hw - Math.abs(newX - ox);
         const overlapZ = hd - Math.abs(newZ - oz);
         if (overlapX < overlapZ) {
@@ -2424,7 +3610,6 @@ function updatePlayer(dt) {
     }
   });
 
-  // Boundary
   newX = Math.max(-48, Math.min(48, newX));
   newZ = Math.max(-48, Math.min(48, newZ));
 
@@ -2458,7 +3643,7 @@ function updatePlayer(dt) {
     }
   }
 
-  // Update camera
+  // Update camera position
   camera.position.set(playerBody.x, playerBody.y, playerBody.z);
   camera.rotation.order = 'YXZ';
   camera.rotation.y = yaw;
@@ -2470,7 +3655,7 @@ function updatePlayer(dt) {
   }
   shootCooldown = Math.max(0, shootCooldown - dt);
 
-  // Weapon bob
+  // Weapon bobbing animation
   if (len > 0 && playerBody.onGround) {
     const bobSpeed = (keys['ShiftLeft'] || keys['ShiftRight']) ? 12 : 8;
     weaponBob += dt * bobSpeed;
@@ -2478,12 +3663,9 @@ function updatePlayer(dt) {
     weaponBob *= 0.9;
   }
 
-  // Weapon animation
   if (weaponGroup) {
     const bobX = Math.sin(weaponBob) * 0.008;
     const bobY = Math.abs(Math.cos(weaponBob)) * 0.006;
-
-    // Recoil recovery
     recoilOffset *= 0.85;
 
     const baseX = currentWeapon === 0 ? 0.22 : 0.18;
@@ -2494,7 +3676,6 @@ function updatePlayer(dt) {
     weaponGroup.position.y = baseY + bobY - recoilOffset * 0.3;
     weaponGroup.position.z = baseZ + recoilOffset;
 
-    // Inspect animation
     if (inspecting) {
       weaponGroup.position.set(0, -0.15, -0.4);
       weaponGroup.rotation.y += dt * 1.5;
@@ -2529,10 +3710,23 @@ function updateHUD() {
   document.getElementById('hudAmmo').textContent = currentWeapon === 0 ? ammo : '—';
   document.getElementById('hudReserve').textContent = currentWeapon === 0 ? reserve : '—';
   document.getElementById('hudKills').textContent = state.kills;
+  
+  // Real-time HUD health bar scale & color updates
+  const hpBar = document.getElementById('hudHpBar');
+  if (hpBar) {
+    hpBar.style.width = Math.max(0, Math.min(100, state.hp)) + '%';
+    if (state.hp < 30) {
+      hpBar.style.background = 'var(--danger)';
+    } else if (state.hp < 60) {
+      hpBar.style.background = 'var(--accent)';
+    } else {
+      hpBar.style.background = 'var(--success)';
+    }
+  }
 }
 
 /* =========================================================
-   PAUSE / RESUME / QUIT
+   PAUSE / RESUME / QUIT & MULTIPLAYER CLEANUP
    ========================================================= */
 function pauseGame() {
   state.current = GameState.PAUSED;
@@ -2555,14 +3749,125 @@ function quitToMenu() {
   document.getElementById('mainMenu').style.display = '';
   document.exitPointerLock();
 
-  // Clean up scene
-  while (scene.children.length > 0) {
+  // Send leave notification to channel
+  if (channel) {
+    channel.postMessage({ type: 'leave', id: myPlayerId });
+  }
+
+  // Reset variables and lists
+  myTeam = 0;
+  myPlayerName = '';
+  
+  for (let id in remotePlayers) {
+    removeRemotePlayer(id);
+  }
+  remotePlayers = {};
+  
+  botPlayers.forEach(bp => { if (bp.mesh) scene.remove(bp.mesh); });
+  botPlayers = [];
+  
+  zombies.forEach(z => { if (z.mesh) scene.remove(z.mesh); });
+  zombies = [];
+
+  const container = document.getElementById('playerLabels');
+  if (container) container.innerHTML = '';
+
+  // Clean up remaining meshes
+  while (scene && scene.children.length > 0) {
     scene.remove(scene.children[0]);
   }
-  bots = [];
   bullets = [];
-
   updateGoldDisplays();
+}
+
+function updateMultiplayer(dt) {
+  // Lerp remote player positions and rotations
+  for (let id in remotePlayers) {
+    const rp = remotePlayers[id];
+    if (rp.mesh) {
+      rp.mesh.position.x += (rp.targetX - rp.mesh.position.x) * 15 * dt;
+      rp.mesh.position.y += (rp.targetY - rp.mesh.position.y) * 15 * dt;
+      rp.mesh.position.z += (rp.targetZ - rp.mesh.position.z) * 15 * dt;
+      rp.mesh.rotation.y = rp.yaw;
+      
+      // Pivot head & arm weapons according to pitch
+      if (rp.mesh.children[7]) rp.mesh.children[7].rotation.x = -rp.pitch;
+      if (rp.mesh.children[9]) rp.mesh.children[9].rotation.x = -rp.pitch - 0.1;
+    }
+  }
+  
+  // Lerp bot players (for non-hosts)
+  if (!isHost()) {
+    botPlayers.forEach(bp => {
+      if (bp.mesh) {
+        bp.mesh.position.x += (bp.targetX - bp.mesh.position.x) * 15 * dt;
+        bp.mesh.position.y += (bp.targetY - bp.mesh.position.y) * 15 * dt;
+        bp.mesh.position.z += (bp.targetZ - bp.mesh.position.z) * 15 * dt;
+        bp.mesh.rotation.y = bp.yaw;
+        
+        if (bp.mesh.children[7]) bp.mesh.children[7].rotation.x = -bp.pitch;
+        if (bp.mesh.children[9]) bp.mesh.children[9].rotation.x = -bp.pitch - 0.1;
+      }
+    });
+    
+    // Lerp zombies (for non-hosts)
+    zombies.forEach(z => {
+      if (z.mesh) {
+        z.mesh.position.x += (z.targetX - z.mesh.position.x) * 15 * dt;
+        z.mesh.position.y += (z.targetY - z.mesh.position.y) * 15 * dt;
+        z.mesh.position.z += (z.targetZ - z.mesh.position.z) * 15 * dt;
+        
+        const time = performance.now() * 0.005;
+        const swing = Math.sin(time * 3.5) * 0.4;
+        if (z.mesh.children[4]) z.mesh.children[4].rotation.x = swing;
+        if (z.mesh.children[5]) z.mesh.children[5].rotation.x = -swing;
+      }
+    });
+  }
+}
+
+function playShootVisualAt(pos, yaw, pitch) {
+  if (audioCtx) {
+    const vol = getVolume();
+    const dist = camera.position.distanceTo(pos);
+    const volumeFactor = Math.max(0, 1 - dist / 50); // Attenuate sound over 50 meters
+    if (volumeFactor > 0.05) {
+      playRemoteShootSound(volumeFactor * vol);
+    }
+  }
+  
+  // Create tracer bullet
+  const tracerGeo = new THREE.CylinderGeometry(0.005, 0.005, 2, 4);
+  const tracerMat = new THREE.MeshBasicMaterial({ color: 0xffdd44, transparent: true, opacity: 0.8 });
+  const tracer = new THREE.Mesh(tracerGeo, tracerMat);
+
+  const start = pos.clone();
+  start.y += 1.3; // Approx arm height
+
+  const dir = new THREE.Vector3(0, 0, -1);
+  const q = new THREE.Quaternion();
+  q.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+  dir.applyQuaternion(q);
+  
+  tracer.position.copy(start.clone().add(dir.clone().multiplyScalar(1)));
+  tracer.quaternion.copy(q);
+  tracer.rotateX(Math.PI / 2);
+  scene.add(tracer);
+  
+  bullets.push({ mesh: tracer, dir: dir.clone(), life: 0.3, speed: 100 });
+}
+
+function playRemoteShootSound(volume) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.connect(g); g.connect(audioCtx.destination);
+  osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+  g.gain.setValueAtTime(volume * 0.2, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.1);
 }
 
 /* =========================================================
@@ -2573,7 +3878,6 @@ function gameLoop() {
 
   if (state.current !== GameState.PLAYING && state.current !== GameState.PAUSED) return;
 
-  // FPS limiting
   const now = performance.now();
   if (state.settings.fpsLimit > 0) {
     const frameTime = 1000 / state.settings.fpsLimit;
@@ -2582,7 +3886,7 @@ function gameLoop() {
     gameLoop.lastFrame = now;
   }
 
-  // FPS counter
+  // FPS display calculation
   fpsTimes.push(now);
   while (fpsTimes.length > 0 && fpsTimes[0] < now - 1000) fpsTimes.shift();
   fpsDisplay = fpsTimes.length;
@@ -2593,12 +3897,24 @@ function gameLoop() {
     document.getElementById('hudFps').style.display = 'none';
   }
 
-  const dt = Math.min(clock.getDelta(), 0.05); // Cap delta
+  const dt = Math.min(clock.getDelta(), 0.05);
 
   if (state.current === GameState.PLAYING) {
     updatePlayer(dt);
-    updateBots(dt);
+    updateMultiplayer(dt);
+    updateHostEntities(dt);
     updateBullets(dt);
+    updatePlayerLabels();
+    broadcastPlayerState();
+    
+    // Fade damage screen vignetting
+    if (damageVignetteTimer > 0) {
+      damageVignetteTimer -= dt;
+      if (damageVignetteTimer <= 0) {
+        const vig = document.getElementById('damageVignette');
+        if (vig) vig.style.opacity = '0';
+      }
+    }
   }
 
   renderer.render(scene, camera);
@@ -2607,10 +3923,8 @@ function gameLoop() {
 /* =========================================================
    INITIALIZATION
    ========================================================= */
-// Initialize audio context on first user interaction
 document.addEventListener('click', () => initAudio(), { once: true });
 
-// Handle ESC for panels
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     document.querySelectorAll('.panel-overlay.active').forEach(p => {
@@ -2619,7 +3933,6 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// Prevent context menu
 document.addEventListener('contextmenu', e => e.preventDefault());
 
 console.log('%c TACTICAL OPS v1.0 ', 'background:#f59e0b;color:#000;font-size:16px;font-weight:bold;padding:4px 8px;border-radius:4px;');
